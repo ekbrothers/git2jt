@@ -360,22 +360,17 @@ $('gifUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(
 document.querySelectorAll('.sample-chip').forEach(chip=>{
   chip.addEventListener('click',async()=>{
     const localPath=chip.dataset.local;
-    if(localPath){
-      // local bundled GIF — fetch as blob and decode directly
-      setStatus('<span class="spin"></span>Loading sample…','loading');
-      try{
-        const res=await fetch(localPath);
-        if(!res.ok)throw new Error('Could not load sample GIF');
-        const buf=await res.arrayBuffer();
-        const name=localPath.split('/').pop();
-        $('fname').value=name.replace('.gif','.jt');
-        await decodeGifBuffer(buf,name);
-      }catch(err){setStatus('Error: '+err.message,'err');}
-      return;
-    }
-    // fallback: treat as Giphy URL (shouldn't be needed with local chips)
-    const url=chip.dataset.url||'';
-    if(url){$('gifUrl').value=url;loadFromGiphyUrl(url);}
+    if(!localPath)return;
+    $('gifUrl').value='';
+    setStatus('<span class="spin"></span>Loading sample…','loading');
+    try{
+      const res=await fetch(localPath);
+      if(!res.ok)throw new Error('Could not load sample GIF');
+      const buf=await res.arrayBuffer();
+      const name=localPath.split('/').pop();
+      $('fname').value=name.replace('.gif','.jt');
+      await decodeGifBuffer(buf,name);
+    }catch(err){setStatus('Error: '+err.message,'err');}
   });
 });
 
