@@ -203,8 +203,7 @@
 </main>
 
 <script>
-// ─── Giphy public beta key — replace with your own from developers.giphy.com ───
-const GIPHY_API_KEY = 'dc6zaTOxFJmzC';
+// No API key needed — we construct the CDN URL directly from the GIF ID.
 
 const $=id=>document.getElementById(id);
 const W=64,H=24;
@@ -255,6 +254,8 @@ function extractGiphyId(raw){
 }
 
 // ─── Fetch GIF from Giphy ──────────────────────────────────────────────────────
+// Giphy's media CDN is publicly accessible with CORS headers — no API key needed.
+// We construct the URL directly: media.giphy.com/media/{id}/giphy.gif
 async function loadFromGiphyUrl(rawUrl){
   const id=extractGiphyId(rawUrl);
   if(!id){
@@ -264,33 +265,22 @@ async function loadFromGiphyUrl(rawUrl){
 
   $('fetchBtn').classList.add('loading');
   $('fetchBtn').disabled=true;
-  setStatus('<span class="spin"></span>Looking up GIF…','loading');
+  setStatus('<span class="spin"></span>Downloading GIF…','loading');
+
+  // derive a filename from the URL slug (e.g. "fire-flame" from the path)
+  try{
+    const u=new URL(rawUrl.trim());
+    const slug=(u.pathname.split('/').filter(Boolean)[1]||'').replace(/-[^-]+$/,'').replace(/-+/g,'-').replace(/^-|-$/g,'');
+    if(slug)$('fname').value=slug+'.jt';
+  }catch{}
 
   try{
-    // 1. resolve to direct URL via Giphy API
-    const apiUrl=`https://api.giphy.com/v1/gifs/${id}?api_key=${GIPHY_API_KEY}`;
-    const apiRes=await fetch(apiUrl);
-    if(!apiRes.ok)throw new Error(`Giphy API returned ${apiRes.status}`);
-    const apiJson=await apiRes.json();
-    const gifUrl=apiJson?.data?.images?.original?.url;
-    if(!gifUrl)throw new Error('No original URL in Giphy response');
-
-    // auto-fill filename from title
-    const title=apiJson?.data?.title;
-    if(title){
-      const slug=title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-      $('fname').value=(slug||'animation')+'.jt';
-    }
-
-    setStatus('<span class="spin"></span>Downloading GIF…','loading');
-
-    // 2. fetch the actual GIF bytes (Giphy CDN has CORS headers)
+    const gifUrl=`https://media.giphy.com/media/${id}/giphy.gif`;
     const gifRes=await fetch(gifUrl);
-    if(!gifRes.ok)throw new Error(`Could not download GIF (${gifRes.status})`);
+    if(!gifRes.ok)throw new Error(`Could not download GIF (HTTP ${gifRes.status}). The GIF may be private or the URL is invalid.`);
     const buf=await gifRes.arrayBuffer();
-
     setStatus('<span class="spin"></span>Decoding…','loading');
-    await decodeGifBuffer(buf, title||'Giphy GIF');
+    await decodeGifBuffer(buf, id+'.gif');
   }catch(err){
     setStatus('Error: '+err.message,'err');
   }finally{
