@@ -232,8 +232,8 @@
 
     <div class="action-row">
       <button class="primary" id="export" disabled>Export .jt</button>
-      <button class="share-btn" id="shareBtn" disabled style="display:none">
-        <svg class="share-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
+      <button class="share-btn" id="shareBtn" disabled>
+        <svg class="share-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span id="shareBtnLabel">Share</span>
       </button>
       <span style="font-size:11px;color:var(--dim)" id="byteHint"></span>
     </div>
@@ -563,37 +563,36 @@ $('export').addEventListener('click',()=>{
 // ─── Share (Web Share API) ────────────────────────────────────────────────────
 function updateShareBtn(){
   const btn=$('shareBtn');
-  if(!navigator.canShare)return;
-  btn.style.display=''; // show once, never hide again
-  // disabled until frames exist (export or share both work)
+  btn.style.display='';
   btn.disabled=!frames.length;
+  $('shareBtnLabel').textContent=navigator.share?'Share':'Save .jt';
 }
 
 $('shareBtn').addEventListener('click',async()=>{
-  // build fresh blob in case settings changed since last export
-  const blob=lastBlob||makeBlob();
+  if(!frames.length)return;
+  // always build fresh — must happen synchronously inside the click handler
+  const blob=makeBlob();
   const name=currentFilename();
-  const file=new File([blob],name,{type:'application/octet-stream'});
 
-  if(!navigator.canShare||!navigator.canShare({files:[file]})){
-    // fallback: just trigger download
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=name;
-    document.body.appendChild(a);a.click();a.remove();
-    return;
+  // try native share sheet first (iOS Safari 15+, Chrome Android)
+  if(navigator.share){
+    const file=new File([blob],name,{type:'application/octet-stream'});
+    try{
+      await navigator.share({files:[file],title:name});
+      return;
+    }catch(err){
+      if(err.name==='AbortError')return; // user cancelled — not an error
+      // share with files failed (desktop Chrome, some Android) — fall through to download
+    }
   }
 
-  try{
-    await navigator.share({
-      title:'CoolLED animation — '+name,
-      text:'LED panel animation for CoolLED1248 / Coolledu',
-      files:[file],
-    });
-  }catch(err){
-    // AbortError = user cancelled — not a real error
-    if(err.name!=='AbortError')setStatus('Share failed: '+err.message,'err');
-  }
+  // fallback: download
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  setStatus('Saved <b>'+escHtml(name)+'</b> to downloads.');
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
