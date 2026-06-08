@@ -173,10 +173,11 @@
       <button id="fetchBtn">Fetch</button>
     </div>
     <div class="samples" id="samples">
-      <span class="sample-chip" data-url="https://giphy.com/gifs/fire-flame-l0HlBO7eyXzSZkJri">🔥 Fire</span>
-      <span class="sample-chip" data-url="https://giphy.com/gifs/rainbow-trippy-acid-26BRuo6sLetdllPAQ">🌈 Rainbow</span>
-      <span class="sample-chip" data-url="https://giphy.com/gifs/matrix-falling-code-sULKEgDMX8LcI">💻 Matrix</span>
-      <span class="sample-chip" data-url="https://giphy.com/gifs/cat-meme-space-FiGiRei2ICzzG">🐱 Nyan Cat</span>
+      <span class="sample-chip" data-local="/public/fire.gif">🔥 Fire</span>
+      <span class="sample-chip" data-local="/public/rainbow.gif">🌈 Rainbow</span>
+      <span class="sample-chip" data-local="/public/matrix.gif">💻 Matrix</span>
+      <span class="sample-chip" data-local="/public/pulse.gif">✨ Pulse</span>
+      <span class="sample-chip" data-local="/public/nyancat.gif">🐱 Nyan Cat</span>
     </div>
 
     <!-- desktop: drag-and-drop -->
@@ -357,7 +358,25 @@ async function loadGifFile(file){
 $('fetchBtn').addEventListener('click',()=>{const v=$('gifUrl').value.trim();if(v)loadFromGiphyUrl(v);});
 $('gifUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('fetchBtn').click();}});
 document.querySelectorAll('.sample-chip').forEach(chip=>{
-  chip.addEventListener('click',()=>{$('gifUrl').value=chip.dataset.url;loadFromGiphyUrl(chip.dataset.url);});
+  chip.addEventListener('click',async()=>{
+    const localPath=chip.dataset.local;
+    if(localPath){
+      // local bundled GIF — fetch as blob and decode directly
+      setStatus('<span class="spin"></span>Loading sample…','loading');
+      try{
+        const res=await fetch(localPath);
+        if(!res.ok)throw new Error('Could not load sample GIF');
+        const buf=await res.arrayBuffer();
+        const name=localPath.split('/').pop();
+        $('fname').value=name.replace('.gif','.jt');
+        await decodeGifBuffer(buf,name);
+      }catch(err){setStatus('Error: '+err.message,'err');}
+      return;
+    }
+    // fallback: treat as Giphy URL (shouldn't be needed with local chips)
+    const url=chip.dataset.url||'';
+    if(url){$('gifUrl').value=url;loadFromGiphyUrl(url);}
+  });
 });
 
 // ─── Core decoder ─────────────────────────────────────────────────────────────
