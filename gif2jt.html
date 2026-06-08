@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GIF → .JT — CoolLED 24×64 Converter</title>
 <meta name="description" content="Convert any GIF to a .jt file for your CoolLED1248 or Coolledu 64×24 LED panel. Paste a Giphy URL or drop a file — runs entirely in your browser.">
 
@@ -31,84 +31,145 @@
     --dim:#8b909c; --amber:#ffb000; --amber-dim:#7a5400; --green:#39ff14;
     --red:#ff3b30; --blue:#38bdf8; --mono:'IBM Plex Mono',ui-monospace,monospace; --led:'VT323',monospace;
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
     margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
     background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
     background-size:28px 28px;background-position:center;
+    /* safe area for notched phones */
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
   }
   body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% -10%,rgba(255,176,0,.06),transparent 60%)}
-  header{padding:22px 26px 14px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
-  .header-text{flex:1;min-width:200px}
-  h1{font-family:var(--led);font-size:38px;letter-spacing:2px;margin:0;color:var(--amber);text-shadow:0 0 12px rgba(255,176,0,.35)}
-  .sub{color:var(--dim);font-size:12px;margin-top:2px;letter-spacing:.5px}
-  main{max-width:1040px;margin:0 auto;padding:24px 26px 60px;display:grid;grid-template-columns:1fr;gap:22px}
-  @media(min-width:880px){main{grid-template-columns:380px 1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px}
+
+  header{
+    padding:18px 20px 14px;
+    padding-top:calc(18px + env(safe-area-inset-top));
+    border-bottom:1px solid var(--line);
+  }
+  h1{font-family:var(--led);font-size:34px;letter-spacing:2px;margin:0;color:var(--amber);text-shadow:0 0 12px rgba(255,176,0,.35)}
+  .sub{color:var(--dim);font-size:11px;margin-top:2px;letter-spacing:.5px;line-height:1.5}
+
+  main{max-width:1040px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:880px){main{grid-template-columns:380px 1fr;padding:24px 26px 60px}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
   .card h2{font-family:var(--led);font-size:22px;letter-spacing:1px;margin:0 0 12px;color:var(--ink)}
+
   label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 0 5px}
-  select,input[type=text],input[type=number],input[type=url]{width:100%;background:#0e1014;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:9px 10px;font-family:var(--mono);font-size:13px}
+
+  /* 16px minimum prevents iOS auto-zoom on focus */
+  select,input[type=text],input[type=number],input[type=url]{
+    width:100%;background:#0e1014;color:var(--ink);border:1px solid var(--line);
+    border-radius:4px;padding:11px 12px;font-family:var(--mono);font-size:16px;
+    appearance:none;-webkit-appearance:none;
+  }
+  /* scale back down visually on desktop so it doesn't feel oversized */
+  @media(min-width:880px){
+    select,input[type=text],input[type=number],input[type=url]{font-size:13px;padding:9px 10px}
+  }
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b909c' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
   input[type=url]::placeholder{color:var(--dim)}
-  input[type=range]{width:100%;accent-color:var(--amber)}
+  input[type=range]{width:100%;accent-color:var(--amber);height:20px}
+
   .row{display:flex;gap:12px}.row>*{flex:1}
-  .url-row{display:flex;gap:8px;align-items:stretch}
-  .url-row input{flex:1;border-radius:4px 0 0 4px}
-  .url-row button{border-radius:0 4px 4px 0;white-space:nowrap;padding:9px 14px}
-  .drop{border:1.5px dashed var(--amber-dim);border-radius:6px;padding:26px 14px;text-align:center;color:var(--dim);cursor:pointer;transition:.15s;background:#0e1014}
+  .url-row{display:flex;gap:0;align-items:stretch}
+  .url-row input{flex:1;border-radius:4px 0 0 4px;border-right:0}
+  .url-row button{border-radius:0 4px 4px 0;white-space:nowrap;padding:11px 16px;min-width:72px}
+  @media(min-width:880px){.url-row button{padding:9px 14px}}
+
+  /* drop zone: hidden on touch, shown on pointer devices */
+  .drop{border:1.5px dashed var(--amber-dim);border-radius:6px;padding:22px 14px;text-align:center;color:var(--dim);cursor:pointer;transition:.15s;background:#0e1014}
   .drop:hover,.drop.over{border-color:var(--amber);color:var(--amber);background:#121419}
   .drop b{color:var(--ink)}
+  @media(hover:none){.drop{display:none}} /* hide drag-drop on touch devices */
+
+  /* touch file button: shown only on touch devices */
+  .pick-btn{display:none;width:100%;text-align:center;padding:16px;font-size:15px}
+  @media(hover:none){.pick-btn{display:block}}
+
   .val{float:right;color:var(--amber);font-size:11px}
-  button{font-family:var(--mono);font-weight:600;cursor:pointer;border-radius:4px;border:1px solid var(--line);background:#0e1014;color:var(--ink);padding:9px 14px;font-size:13px;transition:.12s}
+
+  button{
+    font-family:var(--mono);font-weight:600;cursor:pointer;border-radius:4px;
+    border:1px solid var(--line);background:#0e1014;color:var(--ink);
+    padding:11px 16px;font-size:15px;transition:.12s;
+    /* minimum 44px tap target */
+    min-height:44px;
+  }
+  @media(min-width:880px){button{font-size:13px;padding:9px 14px;min-height:unset}}
+  button:active{opacity:.75}
   button:hover:not(:disabled){border-color:var(--amber)}
   button.primary{background:var(--amber);color:#1a1200;border-color:var(--amber);text-shadow:none}
   button.primary:disabled{opacity:.4;cursor:not-allowed}
   button.loading{opacity:.6;cursor:wait}
+  button.share-btn{background:#1a1f2e;border-color:#2d3a5c;color:#93c5fd}
+  button.share-btn:hover:not(:disabled){border-color:#93c5fd}
+  button.share-btn:disabled{opacity:.35;cursor:not-allowed}
+
+  .action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}
+
   .preview-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
-  .screen{background:#000;border:10px solid #1b1d22;border-radius:8px;box-shadow:inset 0 0 0 1px #000,0 8px 30px rgba(0,0,0,.6);padding:10px;line-height:0;position:relative}
+  .screen{background:#000;border:8px solid #1b1d22;border-radius:8px;box-shadow:inset 0 0 0 1px #000,0 8px 30px rgba(0,0,0,.6);padding:8px;line-height:0;position:relative}
+  @media(min-width:880px){.screen{border-width:10px;padding:10px}}
   .screen-label{position:absolute;bottom:4px;right:8px;font-family:var(--led);font-size:13px;color:var(--amber-dim);letter-spacing:1px;pointer-events:none}
-  canvas#out{image-rendering:pixelated;display:block;width:640px;max-width:78vw;height:auto}
-  .transport{display:flex;align-items:center;gap:12px;width:100%;justify-content:center;flex-wrap:wrap}
+  canvas#out{image-rendering:pixelated;display:block;width:640px;max-width:82vw;height:auto}
+
+  .transport{display:flex;align-items:center;gap:10px;width:100%;justify-content:center;flex-wrap:wrap}
+  /* make scrubber thumb bigger on touch */
+  input[type=range]#scrub{width:min(240px,70vw)}
+
   .meta{font-size:12px;color:var(--dim);text-align:center;line-height:1.6}
   .meta b{color:var(--ink)}
-  .status{font-size:12px;min-height:16px;color:var(--green)}
+  .status{font-size:12px;min-height:16px;color:var(--green);margin-top:6px;line-height:1.5}
   .status.err{color:var(--red)}
   .status.loading{color:var(--blue)}
-  .note{font-size:11px;color:var(--dim);line-height:1.6;border-top:1px solid var(--line);margin-top:18px;padding-top:14px}
+
+  .note{font-size:11px;color:var(--dim);line-height:1.7;border-top:1px solid var(--line);margin-top:18px;padding-top:14px}
   .note code{color:var(--amber)}
+
   .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   .pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:3px 10px;color:var(--dim)}
+
   .divider{display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px}
   .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
-  .byte-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+  /* hide divider + drop zone on touch */
+  @media(hover:none){.divider{display:none}}
+
+  .byte-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:8px}
   .byte-bar-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .25s}
   .byte-bar-fill.warn{background:var(--red)}
 
-  /* spinner */
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:5px}
 
-  /* sample GIF chips */
-  .samples{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  .sample-chip{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:3px 9px;color:var(--dim);cursor:pointer;background:#0e1014;transition:.12s;white-space:nowrap}
+  .samples{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .sample-chip{
+    font-size:13px;border:1px solid var(--line);border-radius:6px;
+    padding:7px 12px;color:var(--dim);cursor:pointer;background:#0e1014;
+    transition:.12s;white-space:nowrap;min-height:38px;display:flex;align-items:center;
+  }
+  @media(min-width:880px){.sample-chip{font-size:11px;padding:3px 9px;min-height:unset}}
+  .sample-chip:active{opacity:.7}
   .sample-chip:hover{border-color:var(--amber);color:var(--amber)}
+
+  /* share icon SVG inline */
+  .share-icon{width:14px;height:14px;vertical-align:middle;margin-right:6px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
 <header>
-  <div class="header-text">
-    <h1>GIF &rarr; .JT</h1>
-    <div class="sub">CoolLED1248 / Coolledu converter &middot; fixed 64&times;24 panel &middot; runs entirely in your browser</div>
-  </div>
+  <h1>GIF &rarr; .JT</h1>
+  <div class="sub">CoolLED1248 / Coolledu converter &middot; 64&times;24 panel &middot; runs in your browser</div>
 </header>
 
 <main>
   <section class="card" id="controls">
     <h2>Source</h2>
 
-    <!-- Giphy / URL loader -->
     <label>Paste a Giphy URL</label>
     <div class="url-row">
-      <input type="url" id="gifUrl" placeholder="https://giphy.com/gifs/..." autocomplete="off" spellcheck="false">
+      <input type="url" id="gifUrl" placeholder="https://giphy.com/gifs/..." autocomplete="off" spellcheck="false" inputmode="url">
       <button id="fetchBtn">Fetch</button>
     </div>
     <div class="samples" id="samples">
@@ -118,10 +179,13 @@
       <span class="sample-chip" data-url="https://giphy.com/gifs/cat-meme-space-FiGiRei2ICzzG">🐱 Nyan Cat</span>
     </div>
 
+    <!-- desktop: drag-and-drop -->
     <div class="divider">or</div>
-
-    <!-- File drop -->
     <div class="drop" id="drop">Drop a <b>.gif</b> here or <b>click to choose</b></div>
+
+    <!-- mobile: tap to pick -->
+    <button class="pick-btn" id="pickBtn">📂 Choose a GIF from your device</button>
+
     <input type="file" id="file" accept="image/gif" style="display:none">
 
     <h2 style="margin-top:20px">Mapping</h2>
@@ -134,13 +198,13 @@
 
     <label>Color format</label>
     <select id="format">
-      <option value="24">24-bit RGB (recommended for 24&times;64)</option>
+      <option value="24">24-bit RGB (recommended)</option>
       <option value="3">3-bit (7 colors + black)</option>
     </select>
 
     <label>Data layout</label>
     <select id="layout">
-      <option value="dual">Dual block, column-major (24&times;64 default)</option>
+      <option value="dual">Dual block, column-major (default)</option>
       <option value="single">Single block, column-major</option>
       <option value="row">Row-major</option>
     </select>
@@ -154,19 +218,22 @@
     <div class="row">
       <div>
         <label>Max frames</label>
-        <input type="number" id="maxf" min="1" max="120" value="40">
+        <input type="number" id="maxf" min="1" max="120" value="40" inputmode="numeric">
       </div>
       <div>
         <label>Delay (ms)</label>
-        <input type="number" id="delay" min="20" max="5000" value="120">
+        <input type="number" id="delay" min="20" max="5000" value="120" inputmode="numeric">
       </div>
     </div>
 
     <label>Filename</label>
-    <input type="text" id="fname" value="myanimation.jt">
+    <input type="text" id="fname" value="myanimation.jt" autocorrect="off" autocapitalize="off" spellcheck="false">
 
-    <div style="margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="action-row">
       <button class="primary" id="export" disabled>Export .jt</button>
+      <button class="share-btn" id="shareBtn" disabled style="display:none">
+        <svg class="share-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share
+      </button>
       <span style="font-size:11px;color:var(--dim)" id="byteHint"></span>
     </div>
     <div class="byte-bar"><div class="byte-bar-fill" id="byteBarFill" style="width:0%"></div></div>
@@ -183,7 +250,7 @@
       <div class="transport">
         <button id="play">Pause</button>
         <button id="step">Step</button>
-        <input type="range" id="scrub" min="0" max="0" value="0" style="width:240px">
+        <input type="range" id="scrub" min="0" max="0" value="0">
       </div>
       <div class="meta" id="meta">No file loaded.</div>
       <div class="pillrow">
@@ -193,23 +260,21 @@
       </div>
     </div>
     <div class="note">
-      The preview shows exactly what gets encoded, including color reduction. Busy or low-contrast
-      GIFs look much worse at this size — favor bold shapes and high contrast. After exporting,
-      on Android save the file, open it with <code>My Files</code>, tap once and choose
-      <code>open with CoolLED1248</code>. If colors or geometry look scrambled on the real sign,
-      switch <b>Data layout</b> and re-export.
+      Preview shows exactly what gets encoded. Favor bold shapes and high contrast —
+      busy GIFs look rough at 64&times;24. On Android: save the file, open
+      <code>My Files</code>, tap it, choose <code>open with CoolLED1248</code>.
+      If colors look scrambled, switch <b>Data layout</b> and re-export.
     </div>
   </section>
 </main>
 
 <script>
-// No API key needed — we construct the CDN URL directly from the GIF ID.
-
 const $=id=>document.getElementById(id);
 const W=64,H=24;
 let frames=[];
 let cur=0,playing=true,timer=null;
 let rawFrames=[];
+let lastBlob=null, lastFilename='myanimation.jt';
 
 const out=$('out'), octx=out.getContext('2d');
 octx.imageSmoothingEnabled=false;
@@ -220,54 +285,36 @@ function setStatus(msg,type){
   s.className='status'+(type?' '+type:'');
 }
 
-// ─── Giphy URL parser ──────────────────────────────────────────────────────────
-// handles:
-//   giphy.com/gifs/some-title-GIFID
-//   giphy.com/gifs/GIFID
-//   giphy.com/media/GIFID/giphy.gif
-//   media*.giphy.com/media/GIFID/...
-//   giphy.com/clips/... (not a GIF — we'll reject these)
+// ─── Giphy URL parser ─────────────────────────────────────────────────────────
 function extractGiphyId(raw){
   let url;
   try{ url=new URL(raw.trim()); }catch{ return null; }
   if(!url.hostname.includes('giphy.com'))return null;
-
-  // media CDN: media0.giphy.com/media/GIFID/...  OR  media.giphy.com/media/GIFID/...
   const mediaCdn=url.hostname.match(/^media\d*\.giphy\.com$/);
   if(mediaCdn){
     const m=url.pathname.match(/\/media\/([A-Za-z0-9]+)/);
     return m?m[1]:null;
   }
-
   const parts=url.pathname.split('/').filter(Boolean);
-  // /gifs/title-with-hyphens-GIFID  →  last segment is title-GIFID, ID = last hyphen part
   if(parts[0]==='gifs'){
     const slug=parts[1]||'';
     if(!slug)return null;
     const chunks=slug.split('-');
     return chunks[chunks.length-1];
   }
-  // /media/GIFID/giphy.gif
   if(parts[0]==='media'&&parts[1])return parts[1];
-
   return null;
 }
 
-// ─── Fetch GIF from Giphy ──────────────────────────────────────────────────────
-// Giphy's media CDN is publicly accessible with CORS headers — no API key needed.
-// We construct the URL directly: media.giphy.com/media/{id}/giphy.gif
+// ─── Giphy fetch via server proxy ─────────────────────────────────────────────
 async function loadFromGiphyUrl(rawUrl){
   const id=extractGiphyId(rawUrl);
-  if(!id){
-    setStatus('Could not parse a Giphy GIF ID from that URL.','err');
-    return;
-  }
+  if(!id){setStatus('Could not parse a Giphy GIF ID from that URL.','err');return;}
 
   $('fetchBtn').classList.add('loading');
   $('fetchBtn').disabled=true;
   setStatus('<span class="spin"></span>Downloading GIF…','loading');
 
-  // derive a filename from the URL slug (e.g. "fire-flame" from the path)
   try{
     const u=new URL(rawUrl.trim());
     const slug=(u.pathname.split('/').filter(Boolean)[1]||'').replace(/-[^-]+$/,'').replace(/-+/g,'-').replace(/^-|-$/g,'');
@@ -275,9 +322,8 @@ async function loadFromGiphyUrl(rawUrl){
   }catch{}
 
   try{
-    const gifUrl=`/api/gif?id=${encodeURIComponent(id)}`;
-    const gifRes=await fetch(gifUrl);
-    if(!gifRes.ok)throw new Error(`Could not download GIF (HTTP ${gifRes.status}). The GIF may be private or the URL is invalid.`);
+    const gifRes=await fetch(`/api/gif?id=${encodeURIComponent(id)}`);
+    if(!gifRes.ok)throw new Error(`Could not download GIF (HTTP ${gifRes.status})`);
     const buf=await gifRes.arrayBuffer();
     setStatus('<span class="spin"></span>Decoding…','loading');
     await decodeGifBuffer(buf, id+'.gif');
@@ -291,13 +337,14 @@ async function loadFromGiphyUrl(rawUrl){
 
 // ─── File load ────────────────────────────────────────────────────────────────
 $('drop').addEventListener('click',()=>$('file').click());
+$('pickBtn').addEventListener('click',()=>$('file').click());
 $('file').addEventListener('change',e=>{if(e.target.files[0])loadGifFile(e.target.files[0])});
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over')}));
 ['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('over')}));
 $('drop').addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)loadGifFile(f)});
 
 async function loadGifFile(file){
-  setStatus('<span class="spin"></span>Decoding '+file.name+' …','loading');
+  setStatus('<span class="spin"></span>Decoding '+escHtml(file.name)+' …','loading');
   try{
     const buf=await file.arrayBuffer();
     await decodeGifBuffer(buf, file.name);
@@ -306,24 +353,14 @@ async function loadGifFile(file){
   }
 }
 
-// ─── URL fetch button + Enter key ────────────────────────────────────────────
-$('fetchBtn').addEventListener('click',()=>{
-  const val=$('gifUrl').value.trim();
-  if(val)loadFromGiphyUrl(val);
-});
-$('gifUrl').addEventListener('keydown',e=>{
-  if(e.key==='Enter'){e.preventDefault();$('fetchBtn').click();}
-});
-
-// ─── Sample chips ─────────────────────────────────────────────────────────────
+// ─── URL input ────────────────────────────────────────────────────────────────
+$('fetchBtn').addEventListener('click',()=>{const v=$('gifUrl').value.trim();if(v)loadFromGiphyUrl(v);});
+$('gifUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('fetchBtn').click();}});
 document.querySelectorAll('.sample-chip').forEach(chip=>{
-  chip.addEventListener('click',()=>{
-    $('gifUrl').value=chip.dataset.url;
-    loadFromGiphyUrl(chip.dataset.url);
-  });
+  chip.addEventListener('click',()=>{$('gifUrl').value=chip.dataset.url;loadFromGiphyUrl(chip.dataset.url);});
 });
 
-// ─── Core decoder ────────────────────────────────────────────────────────────
+// ─── Core decoder ─────────────────────────────────────────────────────────────
 async function decodeGifBuffer(buf, name){
   if(typeof ImageDecoder==='undefined'){
     setStatus('This browser lacks the ImageDecoder API. Use Chrome, Edge, or Opera.','err');
@@ -343,12 +380,12 @@ async function decodeGifBuffer(buf, name){
   if(durCount){$('delay').value=Math.max(20,Math.round(totalDur/durCount/1000));}
   rawFrames=raw;
   rebuild();
-  setStatus('Loaded '+count+' frame'+(count>1?'s':'')+' from <b>'+escHtml(name)+'</b>. Adjust mapping, then export.');
+  setStatus('Loaded '+count+' frame'+(count>1?'s':'')+' from <b>'+escHtml(name)+'</b>. Adjust settings, then export.');
 }
 
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-// ─── Mapping ─────────────────────────────────────────────────────────────────
+// ─── Mapping ──────────────────────────────────────────────────────────────────
 function fitRect(sw,sh,mode){
   if(mode==='stretch')return{dx:0,dy:0,dw:W,dh:H};
   const sr=sw/sh, dr=W/H; let dw,dh,dx,dy;
@@ -394,6 +431,8 @@ function rebuild(){
   $('pillFmt').textContent=fmt==='3'?'3-bit':'24-bit';
   const layLabel={'dual':'dual block','single':'single block','row':'row-major'};
   $('pillLay').textContent=layLabel[$('layout').value]||$('layout').value;
+  lastBlob=null; // invalidate cached blob when settings change
+  updateShareBtn();
   updateMeta();
   draw();
 }
@@ -413,7 +452,6 @@ function updateMeta(){
   const fmt=$('format').value;
   const bytes=estimateBytes();
   const kb=(bytes/1024).toFixed(1);
-  // rough practical limit for CoolLED app (~500 KB)
   const pct=Math.min(100,bytes/(500*1024)*100);
   $('byteBarFill').style.width=pct+'%';
   $('byteBarFill').className='byte-bar-fill'+(pct>90?' warn':'');
@@ -429,7 +467,6 @@ function restartTimer(){if(timer)clearInterval(timer);timer=setInterval(tick,Mat
 $('play').addEventListener('click',()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';});
 $('step').addEventListener('click',()=>{if(frames.length){playing=false;$('play').textContent='Play';cur=(cur+1)%frames.length;draw();}});
 $('scrub').addEventListener('input',e=>{playing=false;$('play').textContent='Play';cur=+e.target.value;draw();});
-
 ['fit','format','layout','bright','cut','maxf'].forEach(id=>$(id).addEventListener('input',()=>{
   $('brightVal').textContent=$('bright').value+'%';
   $('cutVal').textContent=$('cut').value;
@@ -463,9 +500,7 @@ function encode3channel(grid,chan){
 
 function estimateBytes(){
   if(!frames.length)return 0;
-  const fmt=$('format').value;
-  if(fmt==='24')return frames.length*W*H*3;
-  return frames.length*(W*H/8)*3;
+  return $('format').value==='24'?frames.length*W*H*3:frames.length*(W*H/8)*3;
 }
 
 function buildJT(){
@@ -484,28 +519,75 @@ function buildJT(){
     });
     aniData=[...R,...G,...B];
   }
-  return [{
-    data:{pixelWidth:W,aniData,frameNum:frames.length,delays:+$('delay').value,aniType,pixelHeight:H},
-    dataType:0
-  }];
+  return [{data:{pixelWidth:W,aniData,frameNum:frames.length,delays:+$('delay').value,aniType,pixelHeight:H},dataType:0}];
 }
 
-$('export').addEventListener('click',()=>{
-  if(!frames.length)return;
+function makeBlob(){
   const json=JSON.stringify(buildJT());
-  const blob=new Blob([json],{type:'application/json'});
+  return new Blob([json],{type:'application/octet-stream'});
+}
+
+function currentFilename(){
   let name=$('fname').value.trim()||'myanimation.jt';
   if(!name.toLowerCase().endsWith('.jt'))name+='.jt';
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+  return name;
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+$('export').addEventListener('click',()=>{
+  if(!frames.length)return;
+  lastBlob=makeBlob();
+  lastFilename=currentFilename();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(lastBlob);
+  a.download=lastFilename;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  setStatus('Exported <b>'+escHtml(name)+'</b> ('+(blob.size/1024).toFixed(1)+' KB).');
+  setStatus('Exported <b>'+escHtml(lastFilename)+'</b> ('+(lastBlob.size/1024).toFixed(1)+' KB).');
+  updateShareBtn();
 });
 
-const obs=setInterval(()=>{$('export').disabled=!frames.length;},300);
+// ─── Share (Web Share API) ────────────────────────────────────────────────────
+function updateShareBtn(){
+  const btn=$('shareBtn');
+  // show share button only if the browser supports sharing files
+  if(!navigator.canShare)return;
+  btn.style.display='';
+  btn.disabled=!lastBlob;
+}
+
+$('shareBtn').addEventListener('click',async()=>{
+  // build fresh blob in case settings changed since last export
+  const blob=lastBlob||makeBlob();
+  const name=currentFilename();
+  const file=new File([blob],name,{type:'application/octet-stream'});
+
+  if(!navigator.canShare||!navigator.canShare({files:[file]})){
+    // fallback: just trigger download
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    document.body.appendChild(a);a.click();a.remove();
+    return;
+  }
+
+  try{
+    await navigator.share({
+      title:'CoolLED animation — '+name,
+      text:'LED panel animation for CoolLED1248 / Coolledu',
+      files:[file],
+    });
+  }catch(err){
+    // AbortError = user cancelled — not a real error
+    if(err.name!=='AbortError')setStatus('Share failed: '+err.message,'err');
+  }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+setInterval(()=>{$('export').disabled=!frames.length;},300);
+updateShareBtn();
 restartTimer();
 
-// ─── Service Worker ───────────────────────────────────────────────────────────
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
