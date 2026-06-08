@@ -275,7 +275,7 @@ async function loadFromGiphyUrl(rawUrl){
   }catch{}
 
   try{
-    const gifUrl=`https://media.giphy.com/media/${id}/giphy.gif`;
+    const gifUrl=`/api/gif?id=${encodeURIComponent(id)}`;
     const gifRes=await fetch(gifUrl);
     if(!gifRes.ok)throw new Error(`Could not download GIF (HTTP ${gifRes.status}). The GIF may be private or the URL is invalid.`);
     const buf=await gifRes.arrayBuffer();
