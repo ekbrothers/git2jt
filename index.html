@@ -446,7 +446,6 @@ function rebuild(){
   const layLabel={'dual':'dual block','single':'single block','row':'row-major'};
   $('pillLay').textContent=layLabel[$('layout').value]||$('layout').value;
   lastBlob=null; // invalidate cached blob when settings change
-  updateShareBtn();
   updateMeta();
   draw();
 }
@@ -564,10 +563,10 @@ $('export').addEventListener('click',()=>{
 // ─── Share (Web Share API) ────────────────────────────────────────────────────
 function updateShareBtn(){
   const btn=$('shareBtn');
-  // show share button only if the browser supports sharing files
   if(!navigator.canShare)return;
-  btn.style.display='';
-  btn.disabled=!lastBlob;
+  btn.style.display=''; // show once, never hide again
+  // disabled until frames exist (export or share both work)
+  btn.disabled=!frames.length;
 }
 
 $('shareBtn').addEventListener('click',async()=>{
@@ -598,7 +597,7 @@ $('shareBtn').addEventListener('click',async()=>{
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-setInterval(()=>{$('export').disabled=!frames.length;},300);
+setInterval(()=>{$('export').disabled=!frames.length;updateShareBtn();},300);
 updateShareBtn();
 restartTimer();
 
