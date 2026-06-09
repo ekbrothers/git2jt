@@ -376,10 +376,14 @@ document.querySelectorAll('.sample-chip').forEach(chip=>{
 
 // ─── Core decoder ─────────────────────────────────────────────────────────────
 async function decodeGifBuffer(buf, name){
-  if(typeof ImageDecoder==='undefined'){
-    setStatus('This browser lacks the ImageDecoder API. Use Chrome, Edge, or Opera.','err');
-    return;
+  if(typeof ImageDecoder!=='undefined'){
+    await decodeViaImageDecoder(buf, name);
+  } else {
+    await decodeViaFallback(buf, name);
   }
+}
+
+async function decodeViaImageDecoder(buf, name){
   const dec=new ImageDecoder({data:buf,type:'image/gif'});
   await dec.tracks.ready;
   const track=dec.tracks.selectedTrack;
@@ -395,6 +399,199 @@ async function decodeGifBuffer(buf, name){
   rawFrames=raw;
   rebuild();
   setStatus('Loaded '+count+' frame'+(count>1?'s':'')+' from <b>'+escHtml(name)+'</b>. Adjust settings, then export.');
+}
+
+// ─── Pure-JS GIF fallback (Safari / Firefox) ──────────────────────────────────
+// Decodes GIF89a into ImageBitmap frames compatible with the existing pipeline.
+async function decodeViaFallback(buf, name){
+  const frames = parseGif(new Uint8Array(buf));
+  if(!frames.length) throw new Error('No frames decoded from GIF');
+
+  // Convert each frame's RGBA pixel data to ImageBitmap
+  const raw = [];
+  for(const f of frames){
+    const id = new ImageData(f.pixels, f.width, f.height);
+    raw.push(await createImageBitmap(id));
+  }
+
+  const avgDelay = frames.reduce((s,f)=>s+f.delay,0)/frames.length;
+  if(avgDelay>0) $('delay').value=Math.max(20,Math.round(avgDelay));
+
+  rawFrames=raw;
+  rebuild();
+  setStatus('Loaded '+raw.length+' frame'+(raw.length>1?'s':'')+' from <b>'+escHtml(name)+'</b>. Adjust settings, then export.');
+}
+
+// Minimal GIF89a parser — returns [{pixels:Uint8ClampedArray RGBA, width, height, delay(ms)}]
+function parseGif(data){
+  let pos=0;
+  const read=n=>{const s=data.subarray(pos,pos+n);pos+=n;return s;};
+  const u8=()=>data[pos++];
+  const u16=()=>{const v=data[pos]|(data[pos+1]<<8);pos+=2;return v;};
+
+  // header
+  pos=6;
+  const canvasW=u16(), canvasH=u16();
+  const packed=u8();
+  const hasgct=packed>>7;
+  const gctSize=2<<(packed&7);
+  u8(); u8(); // bgcolor, aspect
+  const gct=hasgct?readColorTable(gctSize):null;
+
+  function readColorTable(n){
+    const t=[];for(let i=0;i<n;i++){t.push([data[pos],data[pos+1],data[pos+2]]);pos+=3;}return t;
+  }
+
+  function skipSubBlocks(){
+    let sz;while((sz=u8())!==0)pos+=sz;
+  }
+
+  const frames=[];
+  // compositing state
+  let canvas=new Uint8ClampedArray(canvasW*canvasH*4); // persistent canvas
+  let gcDelay=100, gcDisposal=0, gcTransIdx=-1;
+
+  while(pos<data.length){
+    const sentinel=u8();
+    if(sentinel===0x3b)break; // trailer
+
+    if(sentinel===0x21){ // extension
+      const label=u8();
+      if(label===0xf9){ // graphic control
+        u8(); // block size (always 4)
+        const p=u8();
+        gcDisposal=(p>>2)&7;
+        const hasTransp=p&1;
+        gcDelay=u16()*10; // centiseconds -> ms
+        gcTransIdx=hasTransp?u8():-1;
+        if(!hasTransp)u8();
+        u8(); // terminator
+      } else {
+        skipSubBlocks();
+      }
+      continue;
+    }
+
+    if(sentinel===0x2c){ // image descriptor
+      const left=u16(),top=u16(),fw=u16(),fh=u16();
+      const p=u8();
+      const haslct=p>>7;
+      const interlace=(p>>6)&1;
+      const lctSize=2<<(p&7);
+      const ct=haslct?readColorTable(lctSize):(gct||[]);
+
+      // LZW decompress
+      const minCode=u8();
+      let rawBytes=[];
+      let sz;while((sz=u8())!==0){for(let i=0;i<sz;i++)rawBytes.push(data[pos+i]);pos+=sz;}
+      const indices=lzwDecode(new Uint8Array(rawBytes),minCode);
+
+      // save previous canvas for disposal
+      const prevCanvas=new Uint8ClampedArray(canvas);
+
+      // apply frame pixels onto canvas
+      let idx=0;
+      for(let row=0;row<fh;row++){
+        const y=interlace?deinterlaceRow(row,fh):row;
+        for(let col=0;col<fw;col++){
+          const ci=indices[idx++];
+          if(ci===gcTransIdx)continue; // transparent — keep canvas pixel
+          const [r,g,b]=ct[ci]||[0,0,0];
+          const off=((top+y)*canvasW+(left+col))*4;
+          canvas[off]=r;canvas[off+1]=g;canvas[off+2]=b;canvas[off+3]=255;
+        }
+      }
+
+      frames.push({pixels:new Uint8ClampedArray(canvas),width:canvasW,height:canvasH,delay:gcDelay||100});
+
+      // disposal
+      if(gcDisposal===2){
+        // restore to background — clear frame rect
+        for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){
+          const off=((top+y)*canvasW+(left+x))*4;
+          canvas[off]=canvas[off+1]=canvas[off+2]=canvas[off+3]=0;
+        }
+      } else if(gcDisposal===3){
+        canvas=prevCanvas;
+      }
+      // disposal 0/1: keep canvas as-is
+
+      gcDisposal=0;gcTransIdx=-1;gcDelay=100;
+      continue;
+    }
+
+    break;
+  }
+  return frames;
+}
+
+function deinterlaceRow(row, height){
+  // GIF interlace pass order: 0,8,16…; 4,12…; 2,6,10…; 1,3,5…
+  const passes=[
+    {start:0,step:8},{start:4,step:8},
+    {start:2,step:4},{start:1,step:2}
+  ];
+  let out=0;
+  for(const {start,step} of passes){
+    for(let y=start;y<height;y+=step){
+      if(out===row)return y;
+      out++;
+    }
+  }
+  return row;
+}
+
+function lzwDecode(data, minCodeSize){
+  const clearCode=1<<minCodeSize;
+  const eofCode=clearCode+1;
+  let codeSize=minCodeSize+1;
+  let nextCode=eofCode+1;
+
+  // build initial table
+  const table=[];
+  for(let i=0;i<clearCode;i++)table[i]=[i];
+  table[clearCode]=null;table[eofCode]=null;
+
+  // bit reader
+  let bitBuf=0,bitLen=0,bytePos=0;
+  const readCode=()=>{
+    while(bitLen<codeSize&&bytePos<data.length){
+      bitBuf|=data[bytePos++]<<bitLen;bitLen+=8;
+    }
+    const code=bitBuf&((1<<codeSize)-1);
+    bitBuf>>=codeSize;bitLen-=codeSize;
+    return code;
+  };
+
+  const out=[];
+  let prev=null;
+
+  while(true){
+    const code=readCode();
+    if(code===eofCode)break;
+    if(code===clearCode){
+      table.length=eofCode+1;
+      codeSize=minCodeSize+1;
+      nextCode=eofCode+1;
+      prev=null;
+      continue;
+    }
+    let entry;
+    if(code<table.length&&table[code]){
+      entry=table[code];
+    } else if(code===nextCode&&prev){
+      entry=[...prev,prev[0]];
+    } else {
+      break;
+    }
+    out.push(...entry);
+    if(prev&&nextCode<4096){
+      table[nextCode++]=[...prev,entry[0]];
+      if(nextCode>=(1<<codeSize)&&codeSize<12)codeSize++;
+    }
+    prev=entry;
+  }
+  return out;
 }
 
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}

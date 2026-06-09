@@ -30,10 +30,12 @@ function encodeGif(frames, delayCs) {
     }
   }
   // Pad palette to next power of 2, minimum 4
-  let palSize = 2;
+  let palSize = 4;
   while (palSize < palette.length) palSize *= 2;
-  if (palSize < 4) palSize = 4;
-  const palBits = Math.log2(palSize) - 1; // stored as N where 2^(N+1) = palSize
+  if (palSize > 256) palSize = 256;
+  // palBits N such that 2^(N+1) = palSize — use integer log2
+  let palBits = 1;
+  while ((2 << palBits) < palSize) palBits++;
 
   // Header
   pushStr('GIF89a');
